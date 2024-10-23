@@ -155,16 +155,26 @@ func calculateDamage(player *models.Player) int {
 }
 
 func (s *BattleService) updatePlayerResources(ctx context.Context, winner, loser *models.Player) {
-	resourceStealPercentage := 0.1 + rand.Float64()*(0.2-0.1)
+	// Generate a random steal percentage between 10% (0.1) and 20% (0.2)
+	stealPercentage := 0.1 + rnd.Float64()*(0.2-0.1)
 
-	goldStolen := int64(float64(loser.Gold) * resourceStealPercentage)
-	silverStolen := int64(float64(loser.Silver) * resourceStealPercentage)
+	// Calculate the amount of gold and silver to be stolen
+	goldStolen := int64(float64(loser.Gold) * stealPercentage / 2)
+	silverStolen := int64(float64(loser.Silver) * stealPercentage / 2)
 
 	// Update resources
 	loser.Gold -= goldStolen
 	loser.Silver -= silverStolen
 	winner.Gold += goldStolen
 	winner.Silver += silverStolen
+
+	// Ensure stolen resources are not negative (in case of very low values)
+	if loser.Gold < 0 {
+		loser.Gold = 0
+	}
+	if loser.Silver < 0 {
+		loser.Silver = 0
+	}
 
 	// Save updated players back to Redis
 	if err := s.repository.PushPlayer(ctx, winner); err != nil {
