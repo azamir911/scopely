@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"sync"
+	"time"
 
 	"battles/pkg/models"
 	"battles/pkg/repository"
@@ -106,28 +107,50 @@ func (s *BattleService) updateLeaderboard(ctx context.Context, winner, loser *mo
 	return nil
 }
 
+// Create a new random source and generator
+var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 func executeBattle(_ context.Context, attacker, defender *models.Player) (*models.Player, *models.Player) {
-	for {
-		if rand.Float64() > defender.LuckValue {
+	for attacker.HitPoints > 0 && defender.HitPoints > 0 {
+		// Use defender's luck value to determine if the attack misses
+		if rnd.Float64() < defender.LuckValue {
+			log.Printf("%s's attack missed!", attacker.Name)
+		} else {
+			// Calculate damage and apply to defender
 			damage := calculateDamage(attacker)
 			defender.HitPoints -= damage
-			if defender.HitPoints <= 0 {
-				return attacker, defender
-			}
+			log.Printf("%s attacks %s for %d damage", attacker.Name, defender.Name, damage)
 		}
 
-		// Swap attacker and defender for the next turn
+		// Swap roles: attacker becomes defender, and defender becomes attacker
 		attacker, defender = defender, attacker
 	}
+
+	// Determine winner and loser
+	if attacker.HitPoints > 0 {
+		return attacker, defender
+	}
+	return defender, attacker
 }
 
 func calculateDamage(player *models.Player) int {
+	// Calculate health percentage
 	healthPercentage := float64(player.HitPoints) / float64(100)
-	effectiveAttack := player.AttackValue * int(healthPercentage)
-	damage := effectiveAttack / 2
+
+	// Calculate effective attack value, considering current health percentage
+	effectiveAttack := float64(player.AttackValue) * healthPercentage
+
+	// Cap the damage to at least half of the base attack value, as specified
+	damage := int(effectiveAttack)
+	if damage < player.AttackValue/2 {
+		damage = player.AttackValue / 2
+	}
+
+	// Ensure minimum damage is at least 1
 	if damage < 1 {
 		damage = 1
 	}
+
 	return damage
 }
 
