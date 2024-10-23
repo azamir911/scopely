@@ -5,20 +5,27 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
+	"battles/pkg/services"
 )
 
-func GetLeaderboardHandler(redisClient *redis.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.Background()
+type LeaderboardHandler struct {
+	gameService *services.GameService
+}
 
-		// Fetch leaderboard data from Redis (assuming sorted set)
-		leaderboard, err := redisClient.ZRevRangeWithScores(ctx, "leaderboard", 0, -1).Result()
-		if err != nil {
-			http.Error(w, "Failed to retrieve leaderboard", http.StatusInternalServerError)
-			return
-		}
-
-		json.NewEncoder(w).Encode(leaderboard)
+func NewLeaderboardHandler(service *services.GameService) *LeaderboardHandler {
+	return &LeaderboardHandler{
+		gameService: service,
 	}
+}
+
+func (h *LeaderboardHandler) GetLeaderboardHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	leaderboard, err := h.gameService.GetLeaderboard(ctx)
+	if err != nil {
+		http.Error(w, "Failed to retrieve leaderboard", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(leaderboard)
 }

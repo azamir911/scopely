@@ -3,42 +3,35 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
+	"battles/pkg/models"
+	"battles/pkg/services"
 )
 
-type BattleRequest struct {
-	AttackerID string `json:"attacker_id"`
-	DefenderID string `json:"defender_id"`
+type BattleHandler struct {
+	gameService *services.GameService
 }
 
-func SubmitBattleHandler(redisClient *redis.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.Background()
-
-		var battleRequest BattleRequest
-		if err := json.NewDecoder(r.Body).Decode(&battleRequest); err != nil {
-			http.Error(w, "Invalid input", http.StatusBadRequest)
-			return
-		}
-
-		// Marshal BattleRequest to JSON
-		battleJSON, err := json.Marshal(battleRequest)
-		if err != nil {
-			http.Error(w, "Failed to serialize battle request", http.StatusInternalServerError)
-			return
-		}
-
-		// Push battle request to Redis queue
-		err = redisClient.RPush(ctx, "battleQueue", battleJSON).Err()
-		if err != nil {
-			http.Error(w, "Failed to submit battle", http.StatusInternalServerError)
-			return
-		}
-
-		log.Printf("Battle request submitted: Attacker - %s, Defender - %s", battleRequest.AttackerID, battleRequest.DefenderID)
-		w.WriteHeader(http.StatusAccepted)
+func NewBattleHandler(service *services.GameService) *BattleHandler {
+	return &BattleHandler{
+		gameService: service,
 	}
+}
+
+func (h *BattleHandler) SubmitBattleHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	var battleRequest models.BattleRequest
+	if err := json.NewDecoder(r.Body).Decode(&battleRequest); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.gameService.SubmitBattle(ctx, battleRequest); err != nil {
+		http.Error(w, "Failed to submit battle request", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }

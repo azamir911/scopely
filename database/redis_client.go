@@ -9,8 +9,8 @@ import (
 
 func NewRedisClient(ctx context.Context) *redis.Client {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Replace with your Redis server address if different
-		Password: "",               // No password set for Redis by default, adjust accordingly
+		Addr:     "localhost:6379", // Redis server address
+		Password: "",               // No password set for Redis by default
 		DB:       0,                // Use default DB
 	})
 
